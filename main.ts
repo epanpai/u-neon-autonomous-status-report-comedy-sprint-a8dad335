@@ -68,7 +68,11 @@ writeFileSync(target, LINE, 'utf8');
 
 // Read back and verify: the file the grader reads must be byte-for-byte
 // the line that passed the gate above — a partial or altered write must
-// fail loudly here instead of shipping a rejected entry.
-if (readFileSync(target, 'utf8') !== LINE) {
+// fail loudly here instead of shipping a rejected entry. The byte-length
+// check matters because the leaderboard's Size column shows bytes: a
+// write that added even one byte (a trailing newline, a BOM) would make
+// the judged size differ from the gated length.
+const written = readFileSync(target);
+if (written.toString('utf8') !== LINE || written.length !== BYTE_LENGTH) {
   throw new Error('entry.txt does not match the gated line');
 }
