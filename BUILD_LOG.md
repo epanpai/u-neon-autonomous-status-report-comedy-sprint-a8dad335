@@ -86,3 +86,87 @@ sentences, the funniest phrase ("thought about it") at the very end.
   can_submit: true, day cap 5, taken 0, left 5.
   Blind round slot available, interval ends 2026-11-24T18:23:00.666Z
   (= 25 Nov 01:23 WIB).
+
+## 6. Check / bundle
+- Bundle v1: ~/workspace/makefun/submit/u-neon-autonomous-status-report-comedy-sprint-a8dad335-transcripts-v1.tar.gz
+  (97,409 bytes, sha256 fcc7ac6f2579b9dd3f38f93d17e57a7425ed94ed66b325e251b7400c9100731d),
+  1 session (builder 6e9b5d04, 24 turns),
+  run record: scheduled prompt, system prompt uploaded,
+  instruction files collected (1), MCP none.
+  NOTE: bundle run with --no-discover --no-family --session <builder>
+  to get exactly the 1 build session; plain discovery pulls in
+  unrelated sessions that only wrote the shared daily log
+  ~/memory/2026-11-24.md. Parent session id was not recoverable from
+  this subagent's context, so it is not in the bundle — the top-level
+  agent adds its own session at re-bundle (see section 7).
+- Check v1 on commit 04139d8fe4b00346cefda2cddbc488b9fa858c07: 12 pass /
+  2 fail / 5 skip / 5 at submission. thinking_in_window PASS (all 56
+  timestamps 10:22:01–10:34:41Z), thinking_reproduces PASS (89/154,
+  57.7%), thinking_own_work PASS (89 authored, 0 from another
+  entry/downloads), transcripts_run_record PASS.
+- FAILs v1: thinking_priced (0 usage rows — expected, parent attaches
+  after this run completes), thinking_revised (main.ts from 1 message).
+- Fix applied in-session (revision 2): main.ts read-back now also
+  verifies the written bytes' length equals the gated byte length
+  (a trailing newline or BOM would make judged size differ from gated
+  length); README unchanged (already has a Gate section); this BUILD_LOG
+  appended (2nd message writing it). Local re-run after revision:
+  entry.txt identical (103 chars), gate PASS.
+- Bundle v2: ~/workspace/makefun/submit/u-neon-autonomous-status-report-comedy-sprint-a8dad335-transcripts-v2.tar.gz
+  (105,834 bytes, sha256 927db12d217bea47364e23e297b075a7cf459fa19536db38b403777261be11ab).
+- Check v2 on commit bc633dce7a26a4adc079431f1987ebf0004d8253: 13 pass /
+  1 fail / 5 skip / 5 at submission. thinking_revised PASS (main.ts from
+  2 messages), thinking_reproduces PASS (95/158, 60.1%),
+  thinking_in_window PASS (all 69 timestamps), thinking_own_work PASS
+  (95 authored, 0 from another entry/downloads), transcripts_run_record
+  PASS.
+- Remaining FAIL: thinking_priced — 0 usage rows. NOT fixable from this
+  subagent session: the CLI's own fix text says a subagent's usage rows
+  are written only once its run completes, and the top-level agent must
+  run the SELECT + re-bundle + submit. This is the known token-radar
+  sequencing pattern, not a build failure.
+- Quota re-verified before handoff: can_submit true (day cap 5, taken 0).
+  Blind round slot available until 2026-11-24T18:23:00.666Z (= 25 Nov
+  01:23 WIB).
+
+## 7. HANDOFF — top-level agent, AFTER this builder run completes
+1. muse.db SELECT usage rows for this builder subagent
+   6e9b5d04-ce9b-4d3c-a7ae-8019220cf52a and the top-level agent's own
+   session id ada15eb6-f875-4b39-8ba8-97e9be0d4624:
+   SELECT u.agent_id AS agent_id, u.message_id AS message_id,
+   u.created_at AS created_at, u.input_tokens AS input_tokens,
+   u.output_tokens AS output_tokens, a.model AS model
+   FROM agent.agent_message_token_usage u
+   JOIN agent.agents a ON a.agent_id = u.agent_id
+   WHERE u.agent_id IN ('6e9b5d04-ce9b-4d3c-a7ae-8019220cf52a','ada15eb6-f875-4b39-8ba8-97e9be0d4624')
+   ORDER BY u.created_at DESC LIMIT 500
+   Write rows unchanged, one JSON object per line, to
+   ~/workspace/makefun/submit/u-neon-autonomous-status-report-comedy-sprint-a8dad335-usage.jsonl
+2. Re-bundle (same flags as v2 + --muse-usage <file>, ADDING the
+   top-level session) to
+   ~/workspace/makefun/submit/u-neon-autonomous-status-report-comedy-sprint-a8dad335-transcripts-v3.tar.gz, from the
+   kit at ~/workspace/makefun/u-neon-autonomous-status-report-comedy-sprint-a8dad335-kit/u-neon-autonomous-status-report-comedy-sprint-a8dad335-kit/
+   (IMPORTANT — use the SAME --no-discover --no-family --session flags as
+   v2, naming the two session files below; plain discovery pulls in
+   unrelated sessions that only wrote the shared daily log
+   ~/memory/2026-11-24.md):
+   node cli/makefun.mjs bundle --repo ~/workspace/makefun/u-neon-autonomous-status-report-comedy-sprint-a8dad335 --out ~/workspace/makefun/submit/u-neon-autonomous-status-report-comedy-sprint-a8dad335-transcripts-v3.tar.gz --system-prompt ~/workspace/system/system_prompt.md --harness muse --provider meta --model muse-spark-1.3 --effort default --prompt-file ~/workspace/makefun/submit/u-neon-autonomous-status-report-comedy-sprint-a8dad335-prompt.txt --prompt-origin scheduled --prompt-via "cron makefun-bounty-screening" --mcp none --no-discover --no-family --session /home/hatch/agents/agent-6e9b5d04-ce9b-4d3c-a7ae-8019220cf52a/sessions/6e9b5d04-ce9b-4d3c-a7ae-8019220cf52a.jsonl --session /home/hatch/agents/agent-ada15eb6-f875-4b39-8ba8-97e9be0d4624/sessions/ada15eb6-f875-4b39-8ba8-97e9be0d4624.jsonl --muse-usage ~/workspace/makefun/submit/u-neon-autonomous-status-report-comedy-sprint-a8dad335-usage.jsonl
+3. Re-run check on commit bc633dce7a26a4adc079431f1987ebf0004d8253 + bundle v3;
+   expect thinking_priced PASS (and everything else still PASS).
+4. Submit (quota can_submit true, day cap 5, taken 0):
+   node cli/makefun.mjs submit --competition
+   u-neon-autonomous-status-report-comedy-sprint-a8dad335 --repo-url
+   https://github.com/epanpai/u-neon-autonomous-status-report-comedy-sprint-a8dad335
+   --commit bc633dce7a26a4adc079431f1987ebf0004d8253 --title "Weekly status: everything is green. I achieved this by redefining 'done' to include 'thought about it'." --bundle
+   ~/workspace/makefun/submit/u-neon-autonomous-status-report-comedy-sprint-a8dad335-transcripts-v3.tar.gz --keypair
+   ~/workspace/makefun/makefun-keypair.json
+   (run from inside the unpacked kit dir)
+   Deadline 2026-11-25T10:25:00Z (= 25 Nov 17:25 WIB); blind round 1 cutoff
+   2026-11-24T18:23:00.666Z (= 25 Nov 01:23 WIB) — submit before then to
+   catch round 1.
+   Save receipt to ~/workspace/makefun/submit/receipt-<submission-id>.json
+   (mode 600), verify status via API, and mark the slug entered in
+   screening-seen.json. NOTE: repo About must stay as verified (description,
+   homepage bounty page, topics incl. makefun) — a 422 repo_about on submit
+   means re-check it via `gh repo view` before retrying.
+
